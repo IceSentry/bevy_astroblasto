@@ -18,6 +18,12 @@ struct Bullet {
     velocity: Vec3,
 }
 
+struct State {
+    shots: Vec<Entity>,
+}
+
+struct ShotHandle(Option<Handle<ColorMaterial>>);
+
 fn world_to_screen_coords(screen_width: f32, screen_height: f32, point: Vec3) -> Vec2 {
     let point = vec2(point.x(), point.y());
     let x = point.x() + screen_width / 2.0;
@@ -83,15 +89,14 @@ fn player_movement_system(
 
 fn fire_shot_system(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mouse_button_input: Res<Input<MouseButton>>,
     window_desc: Res<WindowDescriptor>,
     mouse_pos: Res<MousePos>,
+    shot_handle_res: Res<ShotHandle>,
+    mut state: ResMut<State>,
     mut query: Query<(&Player, &Translation, &Rotation)>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
-        let shot_handle = asset_server.load("assets/shot.png").unwrap();
+    if mouse_button_input.just_pressed(MouseButton::Left) && shot_handle_res.0.is_some() {
         for (_player, translation, _rotation) in &mut query.iter() {
             let world_mouse_pos = screen_to_world_coords(
                 window_desc.width as f32,
@@ -100,10 +105,10 @@ fn fire_shot_system(
             );
             let direction = (world_mouse_pos - translation.0).normalize();
 
-            commands
+            let shot_entity = commands
                 .spawn(Camera2dComponents::default())
                 .spawn(SpriteComponents {
-                    material: materials.add(shot_handle.into()),
+                    material: shot_handle_res.0.unwrap(),
                     translation: *translation,
                     rotation: Rotation(look_at_world(translation.0, world_mouse_pos)),
                     ..Default::default()
@@ -114,7 +119,12 @@ fn fire_shot_system(
                         BULLET_SPEED * direction.y(),
                         0.0,
                     ),
-                });
+                })
+                .current_entity();
+
+            if let Some(shot) = shot_entity {
+                state.shots.push(shot)
+            }
         }
     }
 }
@@ -155,12 +165,19 @@ fn wrap_position_system(window_desc: Res<WindowDescriptor>, mut query: Query<(&m
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut shot_handle_res: ResMut<ShotHandle>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let player_handle = asset_server.load("assets/player.png").unwrap();
 
+    let shot_handle = asset_server.load("assets/shot.png").unwrap();
+    let shot_mat = materials.add(shot_handle.into());
+    shot_handle_res.0 = Some(shot_mat);
+
     commands
+        // 2D camera
         .spawn(Camera2dComponents::default())
+        // Player
         .spawn(SpriteComponents {
             material: materials.add(player_handle.into()),
             ..Default::default()
@@ -177,6 +194,8 @@ fn main() {
             ..Default::default()
         })
         .add_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
+        .add_resource(ShotHandle(None))
+        .add_resource(State { shots: vec![] })
         .add_default_plugins()
         .add_plugin(MousePositionPlugin)
         .add_startup_system(setup.system())
