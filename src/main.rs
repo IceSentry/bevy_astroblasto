@@ -56,6 +56,27 @@ fn player_movement_system(
         rotation.0 = look_at(from, mouse_pos.pos);
     }
 }
+
+fn fire_shot_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mouse_button_input: Res<Input<MouseButton>>,
+    mut query: Query<(&Player, &Translation, &Rotation)>,
+) {
+    if mouse_button_input.just_pressed(MouseButton::Left) {
+        let shot_handle = asset_server.load("assets/shot.png").unwrap();
+        for (_player, translation, _rotation) in &mut query.iter() {
+            commands
+                .spawn(Camera2dComponents::default())
+                .spawn(SpriteComponents {
+                    material: materials.add(shot_handle.into()),
+                    translation: *translation,
+                    ..Default::default()
+                });
+        }
+    }
+}
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -83,5 +104,6 @@ fn main() {
         .add_plugin(MousePositionPlugin)
         .add_startup_system(setup.system())
         .add_system(player_movement_system.system())
+        .add_system(fire_shot_system.system())
         .run();
 }
