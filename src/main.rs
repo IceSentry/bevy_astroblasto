@@ -23,6 +23,11 @@ struct State {
     shots: Vec<Entity>,
 }
 
+enum TextTag {
+    FPS,
+    ShotCounter,
+}
+
 struct ShotHandle(Option<Handle<ColorMaterial>>);
 
 fn world_to_screen_coords(screen_width: f32, screen_height: f32, point: Vec3) -> Vec2 {
@@ -163,12 +168,21 @@ fn wrap_position_system(window_desc: Res<WindowDescriptor>, mut query: Query<(&m
     }
 }
 
-fn fps_update_system(diagnostics: Res<Diagnostics>, mut query: Query<&mut Text>) {
-    for mut text in &mut query.iter() {
-        if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
-            if let Some(average) = fps.average() {
-                text.value = format!("FPS: {:.2}", average);
+fn text_update_system(
+    diagnostics: Res<Diagnostics>,
+    state: Res<State>,
+    mut query: Query<(&TextTag, &mut Text)>,
+) {
+    for (tag, mut text) in &mut query.iter() {
+        match tag {
+            TextTag::FPS => {
+                if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
+                    if let Some(average) = fps.average() {
+                        text.value = format!("FPS: {:.2}", average);
+                    }
+                }
             }
+            TextTag::ShotCounter => text.value = format!("Shot count: {}", state.shots.len()),
         }
     }
 }
@@ -214,7 +228,25 @@ fn setup(
                 },
             },
             ..Default::default()
-        });
+        })
+        .with(TextTag::FPS)
+        .spawn(TextComponents {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+
+                ..Default::default()
+            },
+            text: Text {
+                value: "Shots count:".to_string(),
+                font: font_handle,
+                style: TextStyle {
+                    font_size: 20.0,
+                    color: Color::WHITE,
+                },
+            },
+            ..Default::default()
+        })
+        .with(TextTag::ShotCounter);
 }
 
 fn main() {
@@ -238,6 +270,6 @@ fn main() {
         .add_system(wrap_position_system.system())
         .add_system(fire_shot_system.system())
         .add_system(update_bullet_position_system.system())
-        .add_system(fps_update_system.system())
+        .add_system(text_update_system.system())
         .run();
 }
