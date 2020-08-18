@@ -1,4 +1,5 @@
 mod mouse_position_plugin;
+mod window_resize_plugin;
 
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
@@ -7,6 +8,7 @@ use bevy::{
     render::pass::ClearColor,
 };
 use mouse_position_plugin::{MousePos, MousePositionPlugin};
+use window_resize_plugin::WindowResizePlugin;
 
 const BULLET_SPEED: f32 = 500.0;
 const PLAYER_SPEED: f32 = 400.0;
@@ -193,6 +195,7 @@ fn setup(
     mut shot_handle_res: ResMut<ShotHandle>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
+    // load assets
     let player_handle = asset_server.load("assets/player.png").unwrap();
 
     let shot_handle = asset_server.load("assets/shot.png").unwrap();
@@ -263,6 +266,7 @@ fn main() {
         .add_default_plugins()
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(MousePositionPlugin)
+        .add_plugin(WindowResizePlugin)
         // startup
         .add_startup_system(setup.system())
         // systems
