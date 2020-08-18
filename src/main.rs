@@ -1,23 +1,47 @@
 mod mouse_position_plugin;
 
-use bevy::{prelude::*, render::pass::ClearColor};
+use bevy::{
+    math::{vec2, vec3},
+    prelude::*,
+    render::pass::ClearColor,
+};
 use mouse_position_plugin::{MousePos, MousePositionPlugin};
+
+const BULLET_SPEED: f32 = 500.0;
+const PLAYER_SPEED: f32 = 400.0;
 
 struct Player {
     speed: f32,
 }
 
+struct Bullet {
+    velocity: Vec3,
+}
+
 fn world_to_screen_coords(screen_width: f32, screen_height: f32, point: Vec3) -> Vec2 {
-    let point = Vec2::new(point.x(), point.y());
+    let point = vec2(point.x(), point.y());
     let x = point.x() + screen_width / 2.0;
     let y = point.y() + screen_height / 2.0;
-    Vec2::new(x, y)
+    vec2(x, y)
+}
+
+fn screen_to_world_coords(screen_width: f32, screen_height: f32, point: Vec2) -> Vec3 {
+    let x = point.x() - screen_width / 2.0;
+    let y = point.y() - screen_height / 2.0;
+    vec3(x, y, 0.0)
 }
 
 fn look_at(from: Vec2, target: Vec2) -> Quat {
     let dir = target - from;
+    // for some reason the sprite is rotated 90 degrees
     let angle = dir.y().atan2(dir.x()) - std::f32::consts::FRAC_PI_2;
-    Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), angle)
+    Quat::from_axis_angle(vec3(0.0, 0.0, 1.0), angle)
+}
+
+fn look_at_world(from: Vec3, target: Vec3) -> Quat {
+    let dir = target - from;
+    let angle = dir.y().atan2(dir.x());
+    Quat::from_axis_angle(vec3(0.0, 0.0, 1.0), angle)
 }
 
 fn player_movement_system(
@@ -62,19 +86,46 @@ fn fire_shot_system(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mouse_button_input: Res<Input<MouseButton>>,
+    window_desc: Res<WindowDescriptor>,
+    mouse_pos: Res<MousePos>,
     mut query: Query<(&Player, &Translation, &Rotation)>,
 ) {
     if mouse_button_input.just_pressed(MouseButton::Left) {
         let shot_handle = asset_server.load("assets/shot.png").unwrap();
         for (_player, translation, _rotation) in &mut query.iter() {
+            let world_mouse_pos = screen_to_world_coords(
+                window_desc.width as f32,
+                window_desc.height as f32,
+                mouse_pos.pos,
+            );
+            let direction = (world_mouse_pos - translation.0).normalize();
+
             commands
                 .spawn(Camera2dComponents::default())
                 .spawn(SpriteComponents {
                     material: materials.add(shot_handle.into()),
                     translation: *translation,
+                    rotation: Rotation(look_at_world(translation.0, world_mouse_pos)),
                     ..Default::default()
+                })
+                .with(Bullet {
+                    velocity: vec3(
+                        BULLET_SPEED * direction.x(),
+                        BULLET_SPEED * direction.y(),
+                        0.0,
+                    ),
                 });
         }
+    }
+}
+
+fn update_bullet_position_system(
+    mut _commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &Bullet, &mut Translation)>,
+) {
+    for (_bullet_entity, bullet, mut translation) in &mut query.iter() {
+        translation.0 += time.delta_seconds * bullet.velocity;
     }
 }
 
@@ -114,7 +165,9 @@ fn setup(
             material: materials.add(player_handle.into()),
             ..Default::default()
         })
-        .with(Player { speed: 500.0 });
+        .with(Player {
+            speed: PLAYER_SPEED,
+        });
 }
 
 fn main() {
@@ -130,5 +183,6 @@ fn main() {
         .add_system(player_movement_system.system())
         .add_system(wrap_position_system.system())
         .add_system(fire_shot_system.system())
+        .add_system(update_bullet_position_system.system())
         .run();
 }
