@@ -78,6 +78,7 @@ fn main() {
             title: "bevy_astroblasto".to_string(),
             ..Default::default()
         })
+        .add_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_default_plugins()
         .add_plugin(MousePositionPlugin)
         .add_startup_system(setup.system())
