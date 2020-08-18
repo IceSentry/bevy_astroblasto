@@ -1,6 +1,7 @@
 mod mouse_position_plugin;
 
 use bevy::{
+    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     math::{vec2, vec3},
     prelude::*,
     render::pass::ClearColor,
@@ -162,6 +163,16 @@ fn wrap_position_system(window_desc: Res<WindowDescriptor>, mut query: Query<(&m
     }
 }
 
+fn fps_update_system(diagnostics: Res<Diagnostics>, mut query: Query<&mut Text>) {
+    for mut text in &mut query.iter() {
+        if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
+            if let Some(average) = fps.average() {
+                text.value = format!("FPS: {:.2}", average);
+            }
+        }
+    }
+}
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -174,6 +185,8 @@ fn setup(
     let shot_mat = materials.add(shot_handle.into());
     shot_handle_res.0 = Some(shot_mat);
 
+    let font_handle = asset_server.load("assets/DejaVuSerif.ttf").unwrap();
+
     commands
         // 2D camera
         .spawn(Camera2dComponents::default())
@@ -184,11 +197,29 @@ fn setup(
         })
         .with(Player {
             speed: PLAYER_SPEED,
+        })
+        // UI
+        .spawn(UiCameraComponents::default())
+        .spawn(TextComponents {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                ..Default::default()
+            },
+            text: Text {
+                value: "FPS:".to_string(),
+                font: font_handle,
+                style: TextStyle {
+                    font_size: 20.0,
+                    color: Color::WHITE,
+                },
+            },
+            ..Default::default()
         });
 }
 
 fn main() {
     App::build()
+        // resources
         .add_resource(WindowDescriptor {
             title: "bevy_astroblasto".to_string(),
             ..Default::default()
@@ -196,12 +227,17 @@ fn main() {
         .add_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_resource(ShotHandle(None))
         .add_resource(State { shots: vec![] })
+        // plugins
         .add_default_plugins()
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(MousePositionPlugin)
+        // startup
         .add_startup_system(setup.system())
+        // systems
         .add_system(player_movement_system.system())
         .add_system(wrap_position_system.system())
         .add_system(fire_shot_system.system())
         .add_system(update_bullet_position_system.system())
+        .add_system(fps_update_system.system())
         .run();
 }
