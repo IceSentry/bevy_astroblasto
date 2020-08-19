@@ -203,6 +203,7 @@ fn setup(
     shot_handle_res.0 = Some(shot_mat);
 
     let font_handle = asset_server.load("assets/DejaVuSerif.ttf").unwrap();
+    let none_color_mat = materials.add(Color::NONE.into());
 
     commands
         // 2D camera
@@ -217,39 +218,56 @@ fn setup(
         })
         // UI
         .spawn(UiCameraComponents::default())
-        .spawn(TextComponents {
+        .spawn(NodeComponents {
             style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexEnd,
                 ..Default::default()
             },
-            text: Text {
-                value: "FPS:".to_string(),
-                font: font_handle,
-                style: TextStyle {
-                    font_size: 20.0,
-                    color: Color::WHITE,
-                },
-            },
+            material: none_color_mat,
             ..Default::default()
         })
-        .with(TextTag::FPS)
-        .spawn(TextComponents {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-
-                ..Default::default()
-            },
-            text: Text {
-                value: "Shots count:".to_string(),
-                font: font_handle,
-                style: TextStyle {
-                    font_size: 20.0,
-                    color: Color::WHITE,
-                },
-            },
-            ..Default::default()
-        })
-        .with(TextTag::ShotCounter);
+        .with_children(|parent| {
+            parent
+                .spawn(NodeComponents {
+                    material: none_color_mat,
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn(TextComponents {
+                            text: Text {
+                                value: "FPS:".to_string(),
+                                font: font_handle,
+                                style: TextStyle {
+                                    font_size: 20.0,
+                                    color: Color::WHITE,
+                                },
+                            },
+                            ..Default::default()
+                        })
+                        .with(TextTag::FPS);
+                })
+                .spawn(NodeComponents {
+                    material: none_color_mat,
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn(TextComponents {
+                            text: Text {
+                                value: "Shots count:".to_string(),
+                                font: font_handle,
+                                style: TextStyle {
+                                    font_size: 20.0,
+                                    color: Color::WHITE,
+                                },
+                            },
+                            ..Default::default()
+                        })
+                        .with(TextTag::ShotCounter);
+                });
+        });
 }
 
 fn main() {
