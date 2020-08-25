@@ -147,25 +147,27 @@ fn update_bullet_position_system(
     }
 }
 
-fn wrap_position_system(window_desc: Res<WindowDescriptor>, mut query: Query<(&mut Translation,)>) {
-    let sx = window_desc.width as f32;
-    let sy = window_desc.height as f32;
+fn wrap_position_system(windows: Res<Windows>, mut query: Query<(&mut Translation,)>) {
+    for window in windows.iter() {
+        let sx = window.width as f32;
+        let sy = window.height as f32;
 
-    let screen_x_bounds = sx / 2.0;
-    let screen_y_bounds = sy / 2.0;
+        let screen_x_bounds = sx / 2.0;
+        let screen_y_bounds = sy / 2.0;
 
-    for translation in &mut query.iter() {
-        let mut pos = translation.0;
+        for translation in &mut query.iter() {
+            let mut pos = translation.0;
 
-        if pos.x() > screen_x_bounds {
-            *pos.x_mut() -= sx;
-        } else if pos.x() < -screen_x_bounds {
-            *pos.x_mut() += sx;
-        };
-        if pos.y() > screen_y_bounds {
-            *pos.y_mut() -= sy;
-        } else if pos.y() < -screen_y_bounds {
-            *pos.y_mut() += sy;
+            if pos.x() > screen_x_bounds {
+                *pos.x_mut() -= sx;
+            } else if pos.x() < -screen_x_bounds {
+                *pos.x_mut() += sx;
+            };
+            if pos.y() > screen_y_bounds {
+                *pos.y_mut() -= sy;
+            } else if pos.y() < -screen_y_bounds {
+                *pos.y_mut() += sy;
+            }
         }
     }
 }
@@ -284,7 +286,6 @@ fn main() {
         .add_default_plugins()
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(MousePositionPlugin)
-        .add_plugin(WindowResizePlugin)
         // startup
         .add_startup_system(setup.system())
         // systems
